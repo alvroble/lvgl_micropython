@@ -19,3 +19,6 @@
 [submodule "ext_mod/uhashlib/uhashlib"]
 	path = ext_mod/uhashlib/uhashlib
 	url = https://github.com/kdmukai/uhashlib.git
+[submodule "ext_mod/micropython-camera-API"]
+	path = ext_mod/micropython-camera-API
+	url = git@github.com:alvroble/micropython-camera-API.git

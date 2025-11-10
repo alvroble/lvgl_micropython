@@ -22,3 +22,6 @@
 [submodule "ext_mod/micropython-camera-API"]
 	path = ext_mod/micropython-camera-API
 	url = git@github.com:alvroble/micropython-camera-API.git
+[submodule "ext_mod/secp256k1/secp256k1-embedded"]
+	path = ext_mod/secp256k1/secp256k1-embedded
+	url = git@github.com:alvroble/secp256k1-embedded.git

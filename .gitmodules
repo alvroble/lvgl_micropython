@@ -13,3 +13,9 @@
 [submodule "lib/micropython"]
 	path = lib/micropython
 	url = https://github.com/micropython/micropython
+[submodule "ext_mod/quirc/quirc"]
+	path = ext_mod/quirc/quirc
+	url = https://github.com/dlbeer/quirc/
+[submodule "ext_mod/uhashlib/uhashlib"]
+	path = ext_mod/uhashlib/uhashlib
+	url = https://github.com/kdmukai/uhashlib.git

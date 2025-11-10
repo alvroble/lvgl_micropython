@@ -27,11 +27,18 @@ file(GLOB_RECURSE LVGL_HEADERS ${BINDING_DIR}/lib/lvgl/src/*.h ${BINDING_DIR}/li
 # exist before it gets added to the source list and this is the only way I have
 # found to go about doing it.
 
+if(NOT DEFINED ENV{GEN_SCRIPT})
+    # Fallback to 'python' generator when GEN_SCRIPT is not provided by the build wrapper
+    set(GEN_SCRIPT python)
+else()
+    set(GEN_SCRIPT $ENV{GEN_SCRIPT})
+endif()
+
 if(${SECOND_BUILD_ENV} EQUAL "0")
 
     execute_process(
         COMMAND
-            ${Python3_EXECUTABLE} ${BINDING_DIR}/gen/$ENV{GEN_SCRIPT}_api_gen_mpy.py ${LV_CFLAGS} --output=${CMAKE_BINARY_DIR}/lv_mp.c --include=${BINDING_DIR}/lib --include=${BINDING_DIR}/lib/lvgl --board=$ENV{LV_PORT} --module_name=lvgl --module_prefix=lv --metadata=${CMAKE_BINARY_DIR}/lv_mp.c.json --header_file=${LVGL_DIR}/lvgl.h
+            ${Python3_EXECUTABLE} ${BINDING_DIR}/gen/${GEN_SCRIPT}_api_gen_mpy.py ${LV_CFLAGS} --output=${CMAKE_BINARY_DIR}/lv_mp.c --include=${BINDING_DIR}/lib --include=${BINDING_DIR}/lib/lvgl --board=$ENV{LV_PORT} --module_name=lvgl --module_prefix=lv --metadata=${CMAKE_BINARY_DIR}/lv_mp.c.json --header_file=${LVGL_DIR}/lvgl.h
         WORKING_DIRECTORY
             ${CMAKE_CURRENT_LIST_DIR}
 

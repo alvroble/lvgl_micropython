@@ -22,6 +22,7 @@ include(${CMAKE_CURRENT_LIST_DIR}/quirc/micropython.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/secp256k1/secp256k1-embedded/micropython.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/uhashlib/micropython.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/micropython-camera-API/src/micropython.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/qr_pipeline/micropython.cmake)
 
 if(DEFINED ENV{FUSION})
     include(${CMAKE_CURRENT_LIST_DIR}/imu_fusion/micropython.cmake)

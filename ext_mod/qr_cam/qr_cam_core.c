@@ -89,6 +89,62 @@ static inline void copy_gray(uint8_t *dst, const uint8_t *src, uint16_t w, uint1
     }
 }
 
+static inline void scale_gray(uint8_t *dst, int dst_w, int dst_h, const uint8_t *src, int src_w, int src_h, bool mirror) {
+    if (!dst || !src || dst_w <= 0 || dst_h <= 0 || src_w <= 0 || src_h <= 0) {
+        return;
+    }
+    for (int y = 0; y < dst_h; ++y) {
+        int sample_y = (int)((int64_t)y * src_h / dst_h);
+        if (sample_y >= src_h) {
+            sample_y = src_h - 1;
+        }
+        const uint8_t *srow = src + (size_t)sample_y * src_w;
+        uint8_t *drow = dst + (size_t)y * dst_w;
+        for (int x = 0; x < dst_w; ++x) {
+            int sample_x = (int)((int64_t)x * src_w / dst_w);
+            if (sample_x >= src_w) {
+                sample_x = src_w - 1;
+            }
+            if (mirror) {
+                drow[x] = srow[src_w - 1 - sample_x];
+            } else {
+                drow[x] = srow[sample_x];
+            }
+        }
+    }
+}
+
+static void qr_cam_log_decode_error(qr_cam_ctx_t *ctx, quirc_decode_error_t err, const struct quirc_code *code) {
+    if (!ctx->debug_errors || !code) {
+        return;
+    }
+    int min_x = code->corners[0].x;
+    int max_x = code->corners[0].x;
+    int min_y = code->corners[0].y;
+    int max_y = code->corners[0].y;
+    for (int i = 1; i < 4; ++i) {
+        if (code->corners[i].x < min_x) min_x = code->corners[i].x;
+        if (code->corners[i].x > max_x) max_x = code->corners[i].x;
+        if (code->corners[i].y < min_y) min_y = code->corners[i].y;
+        if (code->corners[i].y > max_y) max_y = code->corners[i].y;
+    }
+    int span_x = max_x - min_x;
+    int span_y = max_y - min_y;
+    if (span_x < 0) span_x = -span_x;
+    if (span_y < 0) span_y = -span_y;
+    int module_pitch_x10 = (code->size > 0 && span_x > 0) ? (span_x * 10 / code->size) : 0;
+    const char *err_str = quirc_strerror(err);
+    ESP_LOGW(TAG,
+        "[qr_cam] decode err=%s (%d) modules=%d span=%dx%d pitch=%d.%dpx",
+        err_str ? err_str : "unknown",
+        (int)err,
+        code->size,
+        span_x,
+        span_y,
+        module_pitch_x10 / 10,
+        module_pitch_x10 % 10);
+}
+
 static void qr_cam_reset_ctx(qr_cam_ctx_t *ctx, bool clear_stats) {
     if (!ctx) {
         return;
@@ -159,6 +215,7 @@ void qr_cam_config_init_defaults(qr_cam_config_t *cfg) {
     cfg->results_q_len = 8;
     cfg->capture_core = -1;
     cfg->decode_core = -1;
+    cfg->debug_errors = false;
 }
 
 static inline uint8_t clamp_decoder_count(uint8_t count) {
@@ -246,6 +303,7 @@ bool qr_cam_start(qr_cam_ctx_t *ctx, const qr_cam_config_t *cfg) {
     ctx->frame_size = cfg->frame_size;
     ctx->mirror = cfg->mirror;
     ctx->flip_retry = cfg->flip_retry;
+    ctx->debug_errors = cfg->debug_errors;
     ctx->max_decode_per_frame = cfg->max_decode_per_frame == 0 ? 1 : cfg->max_decode_per_frame;
     if (ctx->max_decode_per_frame > 8) {
         ctx->max_decode_per_frame = 8;
@@ -530,10 +588,12 @@ static void qr_cam_capture_task(void *arg) {
         }
 
         if (ctx->preview_mtx && xSemaphoreTake(ctx->preview_mtx, pdMS_TO_TICKS(2)) == pdTRUE) {
-            size_t expected = (size_t)ctx->preview_width * ctx->preview_height;
-            size_t to_copy = ((size_t)fb->width * fb->height);
-            if (expected == to_copy && ctx->preview_buf) {
-                copy_gray(ctx->preview_buf, fb->buf, ctx->preview_width, ctx->preview_height, ctx->mirror);
+            if (ctx->preview_buf) {
+                if (fb->width == ctx->preview_width && fb->height == ctx->preview_height) {
+                    copy_gray(ctx->preview_buf, fb->buf, ctx->preview_width, ctx->preview_height, ctx->mirror);
+                } else if (ctx->preview_width > 0 && ctx->preview_height > 0) {
+                    scale_gray(ctx->preview_buf, ctx->preview_width, ctx->preview_height, fb->buf, fb->width, fb->height, ctx->mirror);
+                }
                 ctx->preview_seq++;
                 ctx->stats.preview_seq = ctx->preview_seq;
             } else {
@@ -677,6 +737,10 @@ static void qr_cam_decoder_task(void *arg) {
             } else {
                 ctx->stats.decode_errors++;
                 ctx->stats.last_error = (uint32_t)derr;
+                if ((uint32_t)derr < QR_CAM_ERR_MAX) {
+                    ctx->stats.error_hist[derr]++;
+                }
+                qr_cam_log_decode_error(ctx, derr, code);
             }
         }
 

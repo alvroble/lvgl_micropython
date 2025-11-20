@@ -11,6 +11,7 @@
 #include "freertos/semphr.h"
 #include "freertos/task.h"
 #include "sensor.h"
+#include "quirc.h"
 
 #include "camera_pins.h"
 
@@ -69,6 +70,7 @@ extern "C" {
 
 #define QR_CAM_MAX_TEXT              (256)
 #define QR_CAM_MAX_DECODERS          (3)
+#define QR_CAM_ERR_MAX               (QUIRC_ERROR_DATA_UNDERFLOW + 1)
 
 typedef struct {
     char text[QR_CAM_MAX_TEXT];
@@ -90,6 +92,7 @@ typedef struct {
     uint32_t preview_drops;
     uint32_t result_drops;
     uint32_t last_error;
+    uint32_t error_hist[QR_CAM_ERR_MAX];
 } qr_cam_stats_t;
 
 typedef struct {
@@ -103,6 +106,7 @@ typedef struct {
     uint8_t results_q_len;
     int capture_core;
     int decode_core;
+    bool debug_errors;
 } qr_cam_config_t;
 
 typedef struct {
@@ -128,6 +132,7 @@ typedef struct {
     uint32_t frame_seq;
     uint32_t preview_seq;
     bool camera_active;
+    bool debug_errors;
     qr_cam_stats_t stats;
 } qr_cam_ctx_t;
 

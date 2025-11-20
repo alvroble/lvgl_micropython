@@ -6,6 +6,7 @@
 #include "py/mphal.h"
 
 #include "qr_cam_core.h"
+#include "quirc.h"
 
 typedef struct _mp_qr_cam_obj_t {
     mp_obj_base_t base;
@@ -184,6 +185,7 @@ enum {
     ARG_decode_core,
     ARG_mirror,
     ARG_flip_retry,
+    ARG_debug_errors,
     ARG_pins,
 };
 
@@ -200,6 +202,7 @@ static mp_obj_t mp_qr_cam_make_new(const mp_obj_type_t *type, size_t n_args, siz
         { MP_QSTR_decode_core, MP_ARG_INT, {.u_int = -1} },
         { MP_QSTR_mirror, MP_ARG_BOOL, {.u_bool = false} },
         { MP_QSTR_flip_retry, MP_ARG_BOOL, {.u_bool = true} },
+        { MP_QSTR_debug_errors, MP_ARG_BOOL, {.u_bool = false} },
         { MP_QSTR_pins, MP_ARG_OBJ, {.u_obj = mp_const_none} },
     };
 
@@ -254,6 +257,7 @@ static mp_obj_t mp_qr_cam_make_new(const mp_obj_type_t *type, size_t n_args, siz
     self->cfg.decode_core = parsed[ARG_decode_core].u_int;
     self->cfg.mirror = parsed[ARG_mirror].u_bool;
     self->cfg.flip_retry = parsed[ARG_flip_retry].u_bool;
+    self->cfg.debug_errors = parsed[ARG_debug_errors].u_bool;
 
     mp_qr_cam_apply_pin_overrides(parsed[ARG_pins].u_obj, &self->cfg.cam);
     mp_qr_cam_validate_pins(&self->cfg.cam);
@@ -397,7 +401,7 @@ static mp_obj_t mp_qr_cam_stats(mp_obj_t self_in) {
     mp_qr_cam_obj_t *self = MP_OBJ_TO_PTR(self_in);
     qr_cam_stats_t st = {0};
     qr_cam_get_stats(&self->ctx, &st);
-    mp_obj_t dict = mp_obj_new_dict(9);
+    mp_obj_t dict = mp_obj_new_dict(10);
     mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_cap_frames), MP_OBJ_NEW_SMALL_INT(st.cap_frames));
     mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_decoded_ok), MP_OBJ_NEW_SMALL_INT(st.decoded_ok));
     mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_decoded_candidates), MP_OBJ_NEW_SMALL_INT(st.decoded_candidates));
@@ -407,6 +411,17 @@ static mp_obj_t mp_qr_cam_stats(mp_obj_t self_in) {
     mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_preview_drops), MP_OBJ_NEW_SMALL_INT(st.preview_drops));
     mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_result_drops), MP_OBJ_NEW_SMALL_INT(st.result_drops));
     mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_last_error), MP_OBJ_NEW_SMALL_INT(st.last_error));
+    mp_obj_t err_dict = mp_obj_new_dict(QR_CAM_ERR_MAX);
+    for (int i = 0; i < QR_CAM_ERR_MAX; ++i) {
+        const char *name = quirc_strerror((quirc_decode_error_t)i);
+        if (!name) {
+            name = "unknown";
+        }
+        mp_obj_dict_store(err_dict,
+            mp_obj_new_str(name, strlen(name)),
+            MP_OBJ_NEW_SMALL_INT(st.error_hist[i]));
+    }
+    mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_error_hist), err_dict);
     return dict;
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(mp_qr_cam_stats_obj, mp_qr_cam_stats);

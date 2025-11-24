@@ -25,3 +25,6 @@
 [submodule "ext_mod/secp256k1/secp256k1-embedded"]
 	path = ext_mod/secp256k1/secp256k1-embedded
 	url = git@github.com:alvroble/secp256k1-embedded.git
+[submodule "ext_mod/embit/embit"]
+	path = ext_mod/embit/embit
+	url = https://github.com/diybitcoinhardware/embit.git
